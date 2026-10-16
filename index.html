@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة السلم والثعبان التعليمية - القاعدة النورانية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            min-height: 100vh;
+        }
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(10, minmax(0, 1fr));
+            grid-template-rows: repeat(10, minmax(0, 1fr));
+        }
+        @keyframes bounce-custom {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+        @keyframes celebrate {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2) rotate(10deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        .animate-bounce-custom {
+            animation: bounce-custom 1.5s infinite ease-in-out;
+        }
+        .celebrate-anim {
+            animation: celebrate 0.8s ease-in-out;
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col min-h-screen">
+
+    <header class="bg-emerald-800 text-white shadow-xl py-4 px-6 mb-6 border-b-4 border-emerald-600">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <span class="text-4xl bg-white/10 p-2 rounded-2xl">👧📚</span>
+                <div>
+                    <h1 class="text-2xl font-black tracking-wide">لعبة السلم والثعبان - القاعدة النورانية</h1>
+                    <p class="text-emerald-200 text-sm">مستوحاة من كتاب القاعدة النورانية الفتحية المطورة (شاملة لجميع الدروس)</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 bg-emerald-900/90 px-5 py-2.5 rounded-2xl border border-emerald-600 shadow-inner">
+                <div class="text-center">
+                    <span class="block text-xs text-emerald-300">موقع الطالبة الحالي</span>
+                    <span id="player-pos-display" class="text-2xl font-black text-amber-300">1</span> / 100
+                </div>
+                <div class="h-8 w-px bg-emerald-700"></div>
+                <div class="text-center">
+                    <span class="block text-xs text-emerald-300">الإجابات الصحيحة</span>
+                    <span id="score-display" class="text-2xl font-black text-emerald-300">0</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 flex-grow w-full grid grid-cols-1 lg:grid-cols-12 gap-6 pb-12">
+        
+        <!-- Game Board Area (7 columns) -->
+        <div class="lg:col-span-7 bg-white p-4 rounded-3xl shadow-2xl border border-emerald-100 flex flex-col items-center relative">
+            <div class="w-full flex justify-between items-center mb-3 px-2">
+                <span class="text-sm font-bold text-slate-600 flex items-center gap-1.5">
+                    <span>🗺️</span> لوحة اللعبة التعليمية (1 إلى 100)
+                </span>
+                <div class="flex items-center gap-3 text-xs font-semibold">
+                    <span class="flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg border border-emerald-200">
+                        <span class="w-3 h-3 bg-emerald-500 rounded-full inline-block"></span> سلالم الصعود ↗
+                    </span>
+                    <span class="flex items-center gap-1 bg-rose-50 text-rose-700 px-2.5 py-1 rounded-lg border border-rose-200">
+                        <span class="w-3 h-3 bg-rose-500 rounded-full inline-block"></span> ثعابين الهبوط ↙
+                    </span>
+                </div>
+            </div>
+
+            <!-- Board Container with SVG Layer for snakes & ladders -->
+            <div id="board-container" class="relative w-full aspect-square bg-slate-50 rounded-2xl border-4 border-emerald-200 overflow-hidden shadow-inner board-grid">
+                <!-- SVG Overlay for distinct Snakes and Ladders drawings -->
+                <svg id="board-svg-overlay" class="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 1000 1000">
+                    <!-- Dynamic SVG lines for snakes and ladders will be injected here -->
+                </svg>
+                <!-- Cells generated via JavaScript -->
+            </div>
+        </div>
+
+        <!-- Control & Question Panel Area (5 columns) -->
+        <div class="lg:col-span-5 flex flex-col gap-6">
+            
+            <!-- Turn / Question Card -->
+            <div class="bg-white p-6 rounded-3xl shadow-2xl border border-emerald-100 flex flex-col justify-between flex-grow">
+                <div>
+                    <div class="flex justify-between items-center border-b pb-3 mb-4">
+                        <span id="qa-lesson-title" class="bg-emerald-100 text-emerald-800 text-xs font-extrabold px-3.5 py-1.5 rounded-xl">اضغط زر الحركة للبدء</span>
+                        <span id="qa-status" class="text-xs font-bold text-slate-400">في انتظار السؤال</span>
+                    </div>
+
+                    <div id="question-area" class="space-y-4">
+                        <div class="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200 shadow-sm">
+                            <h3 id="question-text" class="text-base sm:text-lg font-bold text-slate-700 text-center leading-relaxed">
+                                مرحباً بك! اضغط على زر "حركة عشوائية وسؤال جديد" للبدء في رحلة تعلم القاعدة النورانية.
+                            </h3>
+                        </div>
+
+                        <!-- Options Container -->
+                        <div id="options-container" class="grid grid-cols-1 gap-2.5">
+                            <!-- Dynamic options populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Controls -->
+                <div class="mt-6 pt-4 border-t flex flex-col gap-3">
+                    <button id="roll-btn" onclick="triggerRandomMove()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-emerald-600/30 transition transform active:scale-95 flex items-center justify-center gap-2.5 text-lg">
+                        <span>🎲</span> حركة عشوائية وسؤال جديد
+                    </button>
+
+                    <div id="feedback-box" class="hidden p-3.5 rounded-2xl text-center text-sm font-bold shadow-sm"></div>
+
+                    <!-- Voice button container for wrong answers -->
+                    <div id="voice-container" class="hidden flex flex-col gap-2.5 bg-amber-50 border-2 border-amber-300 p-4 rounded-2xl shadow-sm animate-pulse-custom">
+                        <p class="text-xs text-amber-900 font-bold text-center">❌ الإجابة خاطئة! استمع للإجابة الصحيحة الآن:</p>
+                        <button id="speak-btn" onclick="speakCorrectAnswer()" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold py-2.5 px-4 rounded-xl shadow flex items-center justify-center gap-2 transition transform active:scale-95">
+                            <span>🔊</span> الاستماع للإجابة الصحيحة صوتياً
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rules & Legend Box -->
+            <div class="bg-emerald-50 border-2 border-emerald-200 p-4.5 rounded-3xl text-xs text-emerald-900 space-y-1.5 shadow-sm">
+                <p class="font-black text-emerald-800 flex items-center gap-1"><span>💡</span> قواعد اللعبة التعليمية:</p>
+                <p>1. الحركة عشوائية تماماً (بدون نرد تقليدي).</p>
+                <p>2. لا تتقدم الطالبة في المربعات إلا إذا أجابت إجابة صحيحة.</p>
+                <p>3. عند الخطأ، يظهر زر الصوت لسماع الإجابة الصحيحة والشرح بوضوح.</p>
+                <p>4. الأسئلة شاملة لجميع دروس القاعدة النورانية (20 درساً) بدون تكرار!</p>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        // Comprehensive Noorani Qaida Questions Bank covering all 20 lessons without repetition
+        const qaidaQuestions = [
+            // الدرس الأول: الحروف الهجائية المفردة
+            { lesson: "الدرس الأول: الحروف المفردة", question: "ما هو اسم الحرف الأول في القاعدة الهجائية المفردة؟", options: ["ألف", "باء", "تاء", "ثاء"], correct: 0, explanation: "الحرف الأول هو الألف." },
+            { lesson: "الدرس الأول: الحروف المفردة", question: "كيف يُنطق حرف (ج) في الحروف المفردة؟", options: ["جيم", "حا", "خا", "دال"], correct: 0, explanation: "ينطق جيم." },
+            { lesson: "الدرس الأول: الحروف المفردة", question: "أي من الحروف التالية يأتي بعد حرف (دال) في الترتيب؟", options: ["ذال", "راء", "سين", "صاد"], correct: 0, explanation: "يأتي حرف الذال بعد الدال مباشرة." },
+            { lesson: "الدرس الأول: الحروف المفردة", question: "ما اسم الحرف المكتوب هكذا (ط) في الحروف المفردة؟", options: ["طا", "ظا", "عين", "غين"], correct: 0, explanation: "هذا هو حرف الطا." },
+            
+            // الدرس الثاني: الحروف المركبة
+            { lesson: "الدرس الثاني: الحروف المركبة", question: "في الحروف المركبة، كيف تُقرأ أو تتركب كلمة (لا)؟", options: ["لام مع ألف", "لام مع باء", "كاف مع لام", "ميم مع ألف"], correct: 0, explanation: "تركب من لام وألف." },
+            { lesson: "الدرس الثاني: الحروف المركبة", question: "أي من الحروف المركبة يأتي في أول الألفاظ المقطعة مثل (الم)؟", options: ["لام ميم", "باء سين", "ط ها", "حا ميم"], correct: 0, explanation: "ألف لام ميم." },
+
+            // الدرس الثالث: الحروف المقطعة
+            { lesson: "الدرس الثالث: الحروف المقطعة", question: "كيف تُقرأ الحروف المقطعة في أوائل سورة البقرة (الم)؟", options: ["أَلِفْ لَامْ مِيمْ", "أَمَ لَمْ", "مَالْ أَلِفْ", "لَمْ يَمْ"], correct: 0, explanation: "تُقرأ مفصلة: أَلِفْ لَامْ مِيمْ." },
+            { lesson: "الدرس الثالث: الحروف المقطعة", question: "كيف تُقرأ الحروف في بداية سورة طه؟", options: ["طَهَ", "يَسَ", "ص", "ق"], correct: 0, explanation: "تُقرأ طه." },
+
+            // الدرس الرابع: الحروف المتحركة
+            { lesson: "الدرس الرابع: الحروف المتحركة", question: "ما هي حركة الفتحة فوق الحرف؟", options: ["شرطة مائلة فوق الحرف تفتح الصوت", "شرطة تحت الحرف", "واو صغيرة", "دائرة صغيرة"], correct: 0, explanation: "الفتحة شرطة مائلة فوق الحرف وتفتح الصوت." },
+            { lesson: "الدرس الخامس: تدريبات على الحركات", question: "كيف نتهجى ونقرأ كلمة (عَبَسَ) في الحروف المتحركة؟", options: ["عين فتحة ع، باء فتحة ب (عَبَ)، سين فتحة س (عَبَسَ)", "عين ضمة ع", "عين سكون ع", "عين كسرة ع"], correct: 0, explanation: "عين فتحة ع، باء فتحة ب (عَبَ)، سين فتحة س (عَبَسَ)." },
+
+            // الدرس السادس والسابع: الحروف المنونة وتدريبات التنوين
+            { lesson: "الدرس السادس: الحروف المنونة", question: "ما هو تنوين الفتح في القاعدة النورانية؟", options: ["فتحتان فوق الحرف مع نون ساكنة تلفظ ولا تكتب", "ضمتان", "كسرتان", "سكون"], correct: 0, explanation: "تنوين الفتح فتحتان تدلان على نون ساكنة تلحق آخر الاسم لفظاً." },
+            { lesson: "الدرس السابع: تدريبات التنوين", question: "كيف نتهجى كلمة (أَبَدًا) المنونة بالفتح؟", options: ["همزة فتحة أ، باء فتحة ب (أَبَ)، دال تنوين فتح دن (أَبَدًا)", "باء ضمة بُ", "ألف مد", "دال سكون"], correct: 0, explanation: "أَبَدًا تتهجى بفتح الحروف وتنوين الفتح في آخره." },
+
+            // الدرس الثامن والتاسع: الحروف الصغيرة
+            { lesson: "الدرس الثامن: الحروف الصغيرة", question: "ماذا يقصد بالحروف الصغيرة (الخنجرية) في القاعدة النورانية؟", options: ["الحركات الطويلة بمقدار حركتين (الألف والصغيرة والواو والياء)", "الحروف الكبيرة", "الحروف المقطعة", "الشدة"], correct: 0, explanation: "هي الحروف الصغيرة الدالة على المد القصير (الحركات الطويلة)." },
+            { lesson: "الدرس التاسع: تدريبات الحروف الصغيرة", question: "كيف تُقرأ كلمة (فَأَوَى) في تدريبات الحروف الصغيرة؟", options: ["بإثبات المد الطبيعي للحروف الصغيرة بمقدار حركتين", "بدون مد", "بالسكون الكامل", "بالتنوين"], correct: 0, explanation: "تُقرأ بمد الألف الصغيرة بمقدار حركتين." },
+
+            // الدرس العاشر والحادي عشر: حروف المد
+            { lesson: "الدرس العاشر: حروف المد", question: "ما هي حروف المد الثلاثة في القاعدة النورانية؟", options: ["الألف والواو والياء", "الفتح والكسر والضم", "الشدة والمد والتنوين", "الهمزة والتاء والثاء"], correct: 0, explanation: "حروف المد هي الألف المفتوح ما قبلها، والواو المضموم ما قبلها، والياء المكسور ما قبلها." },
+            { lesson: "الدرس الحادي عشر: تدريبات حروف المد", question: "في كلمة (حَافِظٌ)، أي حرف يمثل حرف المد؟", options: ["الألف بعد الحاء (حَا)", "الواو", "الياء", "الظاء"], correct: 0, explanation: "الألف بعد الحاء هي حرف المد." },
+
+            // الدرس الثاني عشر والثالث عشر: حرفي اللين
+            { lesson: "الدرس الثاني عشر: حرفي اللين", question: "ما هما حرفا اللين في القاعدة النورانية؟", options: ["الواو والياء الساكنتان المفتوح ما قبلهما (مثل: خَوْف، بَيْت)", "الألف والواو", "الهمزة والهاء", "النون والميم"], correct: 0, explanation: "حرفا اللين هما الواو والياء الساكنتان المفتوح ما قبلهما." },
+            { lesson: "الدرس الثالث عشر: تدريبات حرفي اللين", question: "كيف نتهجى كلمة (خَوْفٍ)؟", options: ["خاء فتحة واو سكون خَوْ، فاء كسرة تنوين فن (خَوْفٍ)", "خاء ضمة خو", "فاء سكون ف", "خاء ألف خا"], correct: 0, explanation: "خاء فتحة واو سكون (خَوْ)، فاء كسرة تنوين (فٍ) -> خَوْفٍ." },
+
+            // الدرس الرابع عشر والخامس عشر: السكون
+            { lesson: "الدرس الرابع عشر: السكون", question: "كيف يُهجى الحرف الساكن في القاعدة النورانية؟", options: ["يُهجى مع الحرف المتحرك الذي قبله بقطعة صوتية واحدة", "يُهجى وحده", "يُهجى مع ما بعده", "يُهجى بالتنوين"], correct: 0, explanation: "الحرف الساكن لا ينطق وحده بل ينطق مع الحرف المتحرك قبله." },
+            { lesson: "الدرس الخامس عشر: تدريبات السكون", question: "في كلمة (يَسْتَثْنُونَ)، كيف نتهجى مقطع (يَسْ)؟", options: ["ياء فتحة سين سكون (يَسْ)", "ياء سكون يْ", "سين فتحة س", "تا فتحة ت"], correct: 0, explanation: "ياء فتحة سين سكون (يَسْ)." },
+
+            // الدرس السادس عشر والسابع عشر: الشدة
+            { lesson: "الدرس السادس عشر: الشدة", question: "ما معنى الشدة في القراءة والتهجي؟", options: ["حرفان الأول ساكن والثاني متحرك أدغما فأكلا حرفاً واحداً مشدداً", "حرف ساكن فقط", "حرف ممدود", "تنوين بالكسر"], correct: 0, explanation: "الشدة تدل على حرفين أولهما ساكن وثانيهما متحرك." },
+            { lesson: "الدرس السابع عشر: تدريبات الشدة", question: "كيف نتهجى كلمة (رَبُّكَ)؟", options: ["راء فتحة باء شدة ربّ، باء ضمة بُ (رَبُّ)، كاف فتحة ك (رَبُّكَ)", "راء ضمة ر", "باء سكون ب", "كاف سكون ك"], correct: 0, explanation: "راء فتحة باء شدة ربّ، باء ضمة بُ، كاف فتحة ك (رَبُّكَ)." },
+
+            // الدرس الثامن عشر: المدود
+            { lesson: "الدرس الثامن عشر: المدود", question: "ما هو المد المتصل أو اللازم في القاعدة؟", options: ["زيادة الصوت بحرف المد بسبب الهمزة أو السكون بعده", "قصر الصوت", "إخفاء الحرف", "إدغام بغنة"], correct: 0, explanation: "هو زيادة مد الصوت عند وجود سبب كهمزة أو سكون." },
+
+            // الدرس التاسع عشر: الحالات الخاصة
+            { lesson: "الدرس التاسع عشر: الحالات الخاصة", question: "في قوله تعالى (بَلْ رَانَ)، ما حكم اللام الساكنة في (بَلْ) عند اللقاء بالراء؟", options: ["إدغام اللام في الراء بدون غنة (بَلْرَانَ)", "إظهار تام", "اقلاب", "إخفاء شفوي"], correct: 0, explanation: "إدغام لام الساكنة في الراء (بَلْرَانَ)." },
+
+            // الدرس العشرون: التطبيقات (قصار السور)
+            { lesson: "الدرس العشرون: التطبيقات (قصار السور)", question: "في سورة الإحلاص، كيف يُقرأ قول الله تعالى (قُلْ هُوَ اللَّهُ أَحَدٌ)؟", options: ["بقراءة صحيحة ومتقنة مطابقة لأحكام التجويد والقاعدة النورانية", "بسرعة بدون أحكام", "بالإمالة", "بالسكت الطويل"], correct: 0, explanation: "بقراءة صحيحة ومتقنة مطابقة لقواعد التجويد والقاعدة النورانية." }
+        ];
+
+        let playerPosition = 1;
+        let score = 0;
+        let currentQuestion = null;
+        let usedQuestionIndices = [];
+        let isAnswering = false;
+
+        // Snakes and Ladders Mapping (Start -> End)
+        const snakesAndLadders = {
+            4: 14, 9: 31, 17: 7, 20: 38, 28: 84, 34: 22, 40: 59, 
+            51: 67, 54: 34, 62: 19, 63: 81, 64: 60, 71: 91, 87: 24, 93: 73, 99: 78
+        };
+
+        function createBoard() {
+            const container = document.getElementById('board-container');
+            const svgOverlay = document.getElementById('board-svg-overlay');
+            container.innerHTML = '';
+            container.appendChild(svgOverlay);
+
+            // 10x10 board layout
+            for (let row = 9; row >= 0; row--) {
+                for (let col = 0; col < 10; col++) {
+                    let cellNum;
+                    if (row % 2 === 1) {
+                        cellNum = row * 10 + (10 - col);
+                    } else {
+                        cellNum = row * 10 + col + 1;
+                    }
+
+                    const cellDiv = document.createElement('div');
+                    cellDiv.id = `cell-${cellNum}`;
+                    cellDiv.className = `relative border border-emerald-100 flex flex-col justify-between p-1 text-[11px] sm:text-xs font-bold transition-all duration-300`;
+
+                    if ((row + col) % 2 === 0) {
+                        cellDiv.classList.add('bg-emerald-50/40');
+                    } else {
+                        cellDiv.classList.add('bg-white');
+                    }
+
+                    const numSpan = document.createElement('span');
+                    numSpan.className = 'text-slate-400 font-extrabold z-0';
+                    numSpan.innerText = cellNum;
+                    cellDiv.appendChild(numSpan);
+
+                    if (snakesAndLadders[cellNum]) {
+                        const target = snakesAndLadders[cellNum];
+                        const badge = document.createElement('span');
+                        if (target > cellNum) {
+                            badge.className = 'absolute top-1 left-1 bg-emerald-500 text-white px-1.5 py-0.5 rounded-md text-[9px] font-black shadow z-20';
+                            badge.innerText = `↗ سلم لـ ${target}`;
+                        } else {
+                            badge.className = 'absolute top-1 left-1 bg-rose-500 text-white px-1.5 py-0.5 rounded-md text-[9px] font-black shadow z-20';
+                            badge.innerText = `↙ ثعبان لـ ${target}`;
+                        }
+                        cellDiv.appendChild(badge);
+                    }
+
+                    const tokenContainer = document.createElement('div');
+                    tokenContainer.id = `token-slot-${cellNum}`;
+                    tokenContainer.className = 'absolute inset-0 flex items-center justify-center z-30 pointer-events-none';
+                    cellDiv.appendChild(tokenContainer);
+
+                    container.appendChild(cellDiv);
+                }
+            }
+
+            drawSnakesAndLaddersSVG();
+            updatePlayerPositionUI();
+        }
+
+        // Helper to get center coordinates of any square (1 to 100) on the grid
+        function getCellCoordinates(cellNum) {
+            let row, col;
+            for (let r = 0; r < 10; r++) {
+                for (let c = 0; c < 10; c++) {
+                    let num;
+                    if (r % 2 === 1) {
+                        num = (9 - r) * 10 + (10 - c);
+                    } else {
+                        num = (9 - r) * 10 + c + 1;
+                    }
+                    if (num === cellNum) {
+                        row = r;
+                        col = c;
+                        break;
+                    }
+                }
+                if (row !== undefined) break;
+            }
+            const x = (col * 100) + 50;
+            const y = (row * 100) + 50;
+            return { x, y };
+        }
+
+        // Draw explicit, professional, beautiful SVG drawings for ladders and snakes
+        function drawSnakesAndLaddersSVG() {
+            const svg = document.getElementById('board-svg-overlay');
+            let svgContent = '';
+
+            for (const [startStr, end] of Object.entries(snakesAndLadders)) {
+                const start = parseInt(startStr);
+                const p1 = getCellCoordinates(start);
+                const p2 = getCellCoordinates(end);
+
+                if (end > start) {
+                    // Real Beautiful Ladder with two side rails and multiple horizontal rungs
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const angle = Math.atan2(dy, dx);
+                    const perpX = Math.sin(angle) * 7;
+                    const perpY = -Math.cos(angle) * 7;
+
+                    let rungs = '';
+                    const stepsCount = 5;
+                    for (let i = 1; i < stepsCount; i++) {
+                        const rx = p1.x + (dx * i) / stepsCount;
+                        const ry = p1.y + (dy * i) / stepsCount;
+                        rungs += `<line x1="${rx - perpX}" y1="${ry - perpY}" x2="${rx + perpX}" y2="${ry + perpY}" stroke="#b45309" stroke-width="4" stroke-linecap="round"/>`;
+                    }
+
+                    svgContent += `
+                        <g>
+                            <!-- Side rails -->
+                            <line x1="${p1.x - perpX}" y1="${p1.y - perpY}" x2="${p2.x - perpX}" y2="${p2.y - perpY}" stroke="#d97706" stroke-width="5" stroke-linecap="round"/>
+                            <line x1="${p1.x + perpX}" y1="${p1.y + perpY}" x2="${p2.x + perpX}" y2="${p2.y + perpY}" stroke="#d97706" stroke-width="5" stroke-linecap="round"/>
+                            <!-- Rungs -->
+                            ${rungs}
+                            <!-- Joint pins -->
+                            <circle cx="${p1.x}" cy="${p1.y}" r="5" fill="#92400e"/>
+                            <circle cx="${p2.x}" cy="${p2.y}" r="5" fill="#92400e"/>
+                        </g>
+                    `;
+                } else {
+                    // Real Beautiful Snake with patterned curved body, head, eyes, and tongue
+                    const midX = (p1.x + p2.x) / 2 + 40;
+                    const midY = (p1.y + p2.y) / 2 - 40;
+                    svgContent += `
+                        <g>
+                            <!-- Snake body shadow/glow -->
+                            <path d="M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}" fill="none" stroke="#be123c" stroke-width="16" stroke-linecap="round"/>
+                            <!-- Snake striped pattern -->
+                            <path d="M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}" fill="none" stroke="#f43f5e" stroke-width="12" stroke-linecap="round" stroke-dasharray="14,10"/>
+                            <!-- Snake Head -->
+                            <circle cx="${p1.x}" cy="${p1.y}" r="11" fill="#9f1239"/>
+                            <!-- Snake Eyes -->
+                            <circle cx="${p1.x - 4}" cy="${p1.y - 3}" r="2.5" fill="#fde047"/>
+                            <circle cx="${p1.x + 4}" cy="${p1.y - 3}" r="2.5" fill="#fde047"/>
+                            <!-- Snake Tongue -->
+                            <path d="M ${p1.x} ${p1.y} l 0 10 l -3 4 m 3 -4 l 3 4" fill="none" stroke="#ef4444" stroke-width="2"/>
+                            <!-- Tail End -->
+                            <circle cx="${p2.x}" cy="${p2.y}" r="6" fill="#881337"/>
+                        </g>
+                    `;
+                }
+            }
+            svg.innerHTML = svgContent;
+        }
+
+        function updatePlayerPositionUI() {
+            for (let i = 1; i <= 100; i++) {
+                const slot = document.getElementById(`token-slot-${i}`);
+                if (slot) slot.innerHTML = '';
+            }
+
+            const currentSlot = document.getElementById(`token-slot-${playerPosition}`);
+            if (currentSlot) {
+                // Girl Student character avatar token with lovely design
+                const token = document.createElement('div');
+                token.className = 'w-9 h-9 sm:w-11 sm:h-11 bg-gradient-to-tr from-pink-500 to-rose-400 border-3 border-white rounded-full shadow-2xl flex items-center justify-center text-white text-base sm:text-lg font-black animate-bounce-custom ring-4 ring-pink-300/60';
+                token.innerHTML = '👧';
+                token.title = 'طالبة القاعدة النورانية';
+                currentSlot.appendChild(token);
+            }
+
+            document.getElementById('player-pos-display').innerText = playerPosition;
+            document.getElementById('score-display').innerText = score;
+        }
+
+        function triggerRandomMove() {
+            if (isAnswering) return;
+            
+            const randomSteps = Math.floor(Math.random() * 6) + 1;
+            
+            if (usedQuestionIndices.length >= qaidaQuestions.length) {
+                usedQuestionIndices = [];
+            }
+
+            let randomIndex;
+            do {
+                randomIndex = Math.floor(Math.random() * qaidaQuestions.length);
+            } while (usedQuestionIndices.includes(randomIndex));
+
+            usedQuestionIndices.push(randomIndex);
+            currentQuestion = qaidaQuestions[randomIndex];
+
+            document.getElementById('qa-lesson-title').innerText = currentQuestion.lesson;
+            document.getElementById('qa-status').innerText = `خطوات مقترحة بعد الإجابة: +${randomSteps} خطوات`;
+            document.getElementById('question-text').innerText = currentQuestion.question;
+
+            document.getElementById('feedback-box').classList.add('hidden');
+            document.getElementById('voice-container').classList.add('hidden');
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            currentQuestion.options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-right bg-slate-50 hover:bg-emerald-50 border-2 border-slate-200 hover:border-emerald-400 p-3.5 rounded-2xl font-bold text-slate-700 transition flex items-center justify-between group shadow-sm';
+                btn.innerHTML = `<span>${opt}</span> <span class="w-7 h-7 rounded-xl bg-slate-200 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center text-xs transition">${String.fromCharCode(1571 + index)}</span>`;
+                btn.onclick = () => checkAnswer(index, randomSteps, btn);
+                optionsContainer.appendChild(btn);
+            });
+
+            isAnswering = true;
+            document.getElementById('roll-btn').disabled = true;
+            document.getElementById('roll-btn').classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+        function checkAnswer(selectedIndex, steps, buttonElement) {
+            const allOptionButtons = document.querySelectorAll('#options-container button');
+            allOptionButtons.forEach(b => b.disabled = true);
+
+            const feedbackBox = document.getElementById('feedback-box');
+            feedbackBox.classList.remove('hidden');
+
+            if (selectedIndex === currentQuestion.correct) {
+                // Correct Answer with Celebration and Step-by-Step smooth movement
+                buttonElement.classList.remove('bg-slate-50', 'border-slate-200');
+                buttonElement.classList.add('bg-emerald-600', 'text-white', 'border-emerald-600', 'shadow-md');
+
+                feedbackBox.className = 'p-3.5 rounded-2xl text-center text-sm font-black bg-emerald-100 text-emerald-900 border-2 border-emerald-300 celebrate-anim';
+                feedbackBox.innerHTML = `🎉 أحسنتِ جداً! 👏 تصقيعة حارة لكِ! لقد كسبتِ <span class="text-amber-600 text-base font-black">${steps}</span> حركات متقدمة!`;
+                score++;
+
+                // Step-by-step smooth movement animation
+                let currentStepCount = 0;
+                const moveInterval = setInterval(() => {
+                    if (currentStepCount < steps && playerPosition < 100) {
+                        playerPosition++;
+                        updatePlayerPositionUI();
+                        currentStepCount++;
+                    } else {
+                        clearInterval(moveInterval);
+
+                        // Check snakes or ladders after movement finishes
+                        setTimeout(() => {
+                            if (snakesAndLadders[playerPosition]) {
+                                const finalDest = snakesAndLadders[playerPosition];
+                                if (finalDest > playerPosition) {
+                                    alert(`🚀 ممتاز جداً! لقد صعدت الطالبة عبر السلم الجميل من المربع ${playerPosition} إلى المربع ${finalDest}!`);
+                                } else {
+                                    alert(`⚠️ عذراً! لقد انزلقت الطالبة مع الثعبان من المربع ${playerPosition} إلى المربع ${finalDest}!`);
+                                }
+                                playerPosition = finalDest;
+                                updatePlayerPositionUI();
+                            }
+
+                            if (playerPosition === 100) {
+                                alert('🏆 مبروك للفائزة البطلة! لقد أنهت الطالبة القاعدة النورانية بنجاح تام!');
+                            }
+
+                            resetTurnState();
+                        }, 500);
+                    }
+                }, 400); // 400ms delay per step so player movement is clearly visible
+
+            } else {
+                // Wrong Answer
+                buttonElement.classList.remove('bg-slate-50', 'border-slate-200');
+                buttonElement.classList.add('bg-rose-600', 'text-white', 'border-rose-600', 'shadow-md');
+
+                allOptionButtons[currentQuestion.correct].classList.remove('bg-slate-50', 'border-slate-200');
+                allOptionButtons[currentQuestion.correct].classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-900', 'font-extrabold');
+
+                feedbackBox.className = 'p-3.5 rounded-2xl text-center text-sm font-black bg-rose-100 text-rose-900 border-2 border-rose-300';
+                feedbackBox.innerHTML = `❌ إجابة خاطئة! الإجابة الصحيحة هي: "${currentQuestion.options[currentQuestion.correct]}". لم تتحرك الطالبة من مكانها.`;
+
+                document.getElementById('voice-container').classList.remove('hidden');
+
+                setTimeout(() => {
+                    resetTurnState();
+                }, 5000);
+            }
+        }
+
+        function speakCorrectAnswer() {
+            if (!currentQuestion) return;
+            const textToSpeak = `الإجابة الصحيحة هي: ${currentQuestion.options[currentQuestion.correct]}. الشرح والتوضيح: ${currentQuestion.explanation}`;
+            
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                utterance.lang = 'ar-SA';
+                utterance.rate = 0.85;
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert(textToSpeak);
+            }
+        }
+
+        function resetTurnState() {
+            isAnswering = false;
+            const rollBtn = document.getElementById('roll-btn');
+            rollBtn.disabled = false;
+            rollBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        window.onload = function() {
+            createBoard();
+        };
+    </script>
+</body>
+</html>
